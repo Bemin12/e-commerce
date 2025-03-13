@@ -59,12 +59,7 @@ exports.createProductValidator = [
     .optional()
     .isArray()
     .withMessage('imgaes should be array of strings')
-    .custom((images) =>
-      images.every((img) => {
-        console.log(img);
-        return /\.(jpg|jpeg|png)$/i.test(img);
-      }),
-    )
+    .custom((images) => images.every((img) => /\.(jpg|jpeg|png)$/i.test(img)))
     .withMessage('Images must be jpg, jpeg, or png format'),
   check('category')
     .notEmpty()

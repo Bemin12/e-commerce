@@ -41,7 +41,10 @@ exports.getAll = (Model) =>
     let filterObj = {};
     if (req.params.categoryId)
       filterObj = { category: new mongoose.Types.ObjectId(req.params.categoryId) };
+    if (req.params.subcategoryId)
+      filterObj = { subcategories: new mongoose.Types.ObjectId(req.params.subcategoryId) };
 
+    console.log(filterObj);
     const features = new APIFeatures(Model.aggregate([{ $match: filterObj }]), req.query)
       .filter()
       .search()
@@ -55,7 +58,7 @@ exports.getAll = (Model) =>
     res.status(200).json({
       status: 'success',
       results: docs.length,
-      numOfPages: count[0].numOfPages,
+      numOfPages: count[0]?.numOfPages || 0,
       data: { [resourceName]: docs },
     });
   });

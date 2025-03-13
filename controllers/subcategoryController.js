@@ -26,7 +26,7 @@ exports.getSubcategory = factory.getOne(Subcategory);
 exports.createSubcategory = factory.createOne(Subcategory);
 
 // @desc    Update specific subcategory
-// @route   PUT /api/v1/subcategories/:id
+// @route   PATCH /api/v1/subcategories/:id
 // @access  Private
 exports.updateSubcategory = factory.updateOne(Subcategory);
 
