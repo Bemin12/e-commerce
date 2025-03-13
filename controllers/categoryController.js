@@ -38,7 +38,7 @@ exports.getCategory = factory.getOne(Category);
 exports.createCategory = factory.createOne(Category);
 
 // @desc    Update specific category
-// @route   PUT /api/v1/categories/:id
+// @route   PATCH /api/v1/categories/:id
 // @access  Private
 exports.updateCategory = factory.updateOne(Category);
 

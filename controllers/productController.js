@@ -60,7 +60,7 @@ exports.getProduct = factory.getOne(Product);
 exports.createProduct = factory.createOne(Product);
 
 // @desc    Update specific product
-// @route   PUT /api/v1/products/:id
+// @route   PATCH /api/v1/products/:id
 // @access  Private
 exports.updateProduct = factory.updateOne(Product);
 

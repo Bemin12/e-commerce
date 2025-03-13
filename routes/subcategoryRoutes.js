@@ -15,15 +15,36 @@ const {
   setcategoryIdToBody,
 } = require('../controllers/subcategoryController');
 
+const authController = require('../controllers/authController');
+const productsRouter = require('./productRoutes');
+
+router.use('/:subcategoryId/products', productsRouter);
+
 router
   .route('/')
   .get(getSubcategories)
-  .post(setcategoryIdToBody, createSubcategoryValidator, createSubcategory);
+  .post(
+    authController.protect,
+    authController.restrictTo('admin', 'manager'),
+    setcategoryIdToBody,
+    createSubcategoryValidator,
+    createSubcategory,
+  );
 
 router
   .route('/:id')
   .get(getSubcategoryValidator, getSubcategory)
-  .patch(updateSubcategoryValidator, updateSubcategory)
-  .delete(deleteSubcategoryValidator, deleteSubcategory);
+  .patch(
+    authController.protect,
+    authController.restrictTo('admin', 'manager'),
+    updateSubcategoryValidator,
+    updateSubcategory,
+  )
+  .delete(
+    authController.protect,
+    authController.restrictTo('admin'),
+    deleteSubcategoryValidator,
+    deleteSubcategory,
+  );
 
 module.exports = router;

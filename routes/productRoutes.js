@@ -1,4 +1,4 @@
-const router = require('express').Router();
+const router = require('express').Router({ mergeParams: true });
 const {
   getProductValidator,
   createProductValidator,
@@ -16,14 +16,30 @@ const {
   resizeProductImages,
 } = require('../controllers/productController');
 
+const { protect, restrictTo } = require('../controllers/authController');
+
 router
   .route('/')
   .get(getProducts)
-  .post(uploadProductImages, resizeProductImages, createProductValidator, createProduct);
+  .post(
+    protect,
+    restrictTo('admin', 'manager'),
+    uploadProductImages,
+    resizeProductImages,
+    createProductValidator,
+    createProduct,
+  );
 router
   .route('/:id')
   .get(getProductValidator, getProduct)
-  .patch(uploadProductImages, resizeProductImages, updateProductValidator, updateProduct)
-  .delete(deleteProductValidator, deleteProduct);
+  .patch(
+    protect,
+    restrictTo('admin', 'manager'),
+    uploadProductImages,
+    resizeProductImages,
+    updateProductValidator,
+    updateProduct,
+  )
+  .delete(protect, restrictTo('admin'), deleteProductValidator, deleteProduct);
 
 module.exports = router;

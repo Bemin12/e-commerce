@@ -9,6 +9,12 @@ exports.getCategoryValidator = [
   validatorMiddleware,
 ];
 
+exports.getCategorySubcategoriesValidator = [
+  check('categoryId').isMongoId().withMessage('Invalid category id format'),
+
+  validatorMiddleware,
+];
+
 exports.createCategoryValidator = [
   check('name')
     .notEmpty()
