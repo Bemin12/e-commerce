@@ -49,18 +49,27 @@ exports.createProductValidator = [
     .withMessage('colors should be an array of strings')
     .notEmpty()
     .withMessage('colors should be an array of non-empty strings'),
-  check('imageCover')
-    .notEmpty()
-    .withMessage('Product imageCover is required')
-    .bail()
-    .matches(/\.(jpg|jpeg|png)$/i)
-    .withMessage('Image must be jpg, jpeg, or png format'),
-  check('images')
-    .optional()
-    .isArray()
-    .withMessage('imgaes should be array of strings')
-    .custom((images) => images.every((img) => /\.(jpg|jpeg|png)$/i.test(img)))
-    .withMessage('Images must be jpg, jpeg, or png format'),
+  check('imageCover').custom((value, { req }) => {
+    if (!req.files || !req.files.imageCover) {
+      throw new Error('Product imageCover is required');
+    }
+
+    const imageCover = req.files.imageCover[0];
+    if (!/\.(jpg|jpeg|png)$/i.test(imageCover.originalname)) {
+      throw new Error('Image must be jpg, jpeg, or png format');
+    }
+    return true;
+  }),
+  check('images').custom((value, { req }) => {
+    if (value === '') throw new Error("Don't provide empty images");
+
+    if (req.files && req.files.images) {
+      const { images } = req.files;
+      if (!images.every((image) => /\.(jpg|jpeg|png)$/i.test(image.originalname)))
+        throw new Error('Images must be jpg, jpeg, or png format');
+    }
+    return true;
+  }),
   check('category')
     .notEmpty()
     .withMessage('Product must belong to category')
@@ -71,7 +80,7 @@ exports.createProductValidator = [
     .custom(async (categoryId) => {
       const category = await Category.findById(categoryId);
       if (!category) {
-        throw new Error(`No category for this id: ${categoryId}`);
+        throw new Error(`No category found with this id: ${categoryId}`);
       }
     }),
   check('subcategories')
@@ -80,7 +89,7 @@ exports.createProductValidator = [
     .withMessage('subcategories must be array of MongoIds')
     .bail()
     .isMongoId()
-    .withMessage('Invalid subcategory Id format')
+    .withMessage('Invalid subcategory id format')
     .bail()
     .custom(async (subcategoriesIds, { req }) => {
       const subcategories = await Subcategory.find({
@@ -140,15 +149,26 @@ exports.updateProductValidator = [
     .withMessage('colors should be an array of strings')
     .notEmpty()
     .withMessage('colors should be an array of strings'),
-  check('imageCover')
-    .optional()
-    .matches(/\.(jpg|jpeg|png)$/i)
-    .withMessage('Image must be jpg, jpeg, or png format'),
-  check('images')
-    .optional()
-    .isArray()
-    .withMessage('imgaes should be array of strings')
-    .custom((images) => images.every((img) => /\.(jpg|jpeg|png)$/i.test(img))),
+  check('imageCover').custom((value, { req }) => {
+    if (req.files && req.files.imageCover) {
+      const imageCover = req.files.imageCover[0];
+      if (!/\.(jpg|jpeg|png)$/i.test(imageCover.originalname)) {
+        throw new Error('Image must be jpg, jpeg, or png format');
+      }
+    }
+    return true;
+  }),
+  check('images').custom((value, { req }) => {
+    if (value === '') throw new Error("Don't provide empty images");
+
+    if (req.files && req.files.images) {
+      const { images } = req.files;
+      if (!images.every((image) => /\.(jpg|jpeg|png)$/i.test(image.originalname)))
+        throw new Error('Images must be jpg, jpeg, or png format');
+    }
+    return true;
+  }),
+
   check('category')
     .optional()
     .isMongoId()
@@ -166,7 +186,7 @@ exports.updateProductValidator = [
     .withMessage('subcategories must be array of MongoIds')
     .bail()
     .isMongoId()
-    .withMessage('Invalid Id format')
+    .withMessage('Invalid subcategory id format')
     .bail()
     .custom(async (subcategoriesIds, { req }) => {
       const subcategories = await Subcategory.find({
@@ -191,11 +211,16 @@ exports.updateProductValidator = [
 ];
 
 exports.getProductValidator = [
-  check('id').isMongoId().withMessage('Invalid id format'),
+  check('id').isMongoId().withMessage('Invalid product id format'),
   validatorMiddleware,
 ];
 
 exports.deleteProductValidator = [
-  check('id').isMongoId().withMessage('Invalid id format'),
+  check('id').isMongoId().withMessage('Invalid product id format'),
+  validatorMiddleware,
+];
+
+exports.getProductReviewsValidator = [
+  check('productId').isMongoId().withMessage('Invalid product id format'),
   validatorMiddleware,
 ];

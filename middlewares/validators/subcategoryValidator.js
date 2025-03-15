@@ -1,6 +1,7 @@
 // const slugify = require('slugify');
 const { check } = require('express-validator');
 const validatorMiddleware = require('../validatorMiddleware');
+const Category = require('../../models/categoryModel');
 
 exports.getSubcategoryValidator = [
   check('id').isMongoId().withMessage('Invalid subcategory id format'),
@@ -26,7 +27,13 @@ exports.createSubcategoryValidator = [
     .withMessage('Subcategory must belong to parent category')
     .bail()
     .isMongoId()
-    .withMessage('Invalid subcategory id format'),
+    .withMessage('Invalid subcategory id format')
+    .custom(async (categoryId) => {
+      const category = await Category.findById(categoryId);
+      if (!category) {
+        throw new Error('No category found with this id');
+      }
+    }),
   validatorMiddleware,
 ];
 
@@ -43,10 +50,26 @@ exports.updateSubcategoryValidator = [
   //   console.log(req.body);
   //   return true;
   // })
+  check('category')
+    .optional()
+    .isMongoId()
+    .withMessage('Invalid subcategory id format')
+    .custom(async (categoryId) => {
+      const category = await Category.findById(categoryId);
+      if (!category) {
+        throw new Error('No category found with this id');
+      }
+    }),
   validatorMiddleware,
 ];
 
 exports.deleteSubcategoryValidator = [
   check('id').isMongoId().withMessage('Invalid subcategory id format'),
+  validatorMiddleware,
+];
+
+exports.getSubcategoryProductsValidator = [
+  check('subcategoryId').isMongoId().withMessage('Invalid subcategory id format'),
+
   validatorMiddleware,
 ];

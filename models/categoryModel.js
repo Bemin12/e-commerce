@@ -15,11 +15,11 @@ const categorySchema = new mongoose.Schema(
     },
     image: {
       type: String,
-      get: (val) => `${process.env.BASE_URL}${val}`,
+      // get: (val) => `${process.env.BASE_URL}${val}`,
     },
   },
-  { timestamps: true, toJSON: { getters: true }, toObject: { getters: true } },
-  0,
+  { timestamps: true },
+  // { timestamps: true, toJSON: { getters: true }, toObject: { getters: true } },
 );
 
 module.exports = mongoose.model('Category', categorySchema);

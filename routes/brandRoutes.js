@@ -23,10 +23,10 @@ router
   .get(getBrands)
   .post(
     authController.protect,
-    authController.restrictTo('admin'),
+    authController.restrictTo('admin', 'manager'),
     uploadBrandImage,
-    resizeImage,
     createBrandValidator,
+    resizeImage,
     createBrand,
   );
 router
@@ -36,13 +36,13 @@ router
     authController.protect,
     authController.restrictTo('admin', 'manager'),
     uploadBrandImage,
-    resizeImage,
     updateBrandValidator,
+    resizeImage,
     updateBrand,
   )
   .delete(
     authController.protect,
-    authController.restrictTo('admin', 'manager'),
+    authController.restrictTo('admin'),
     deleteBrandValidator,
     deleteBrand,
   );

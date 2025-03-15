@@ -17,14 +17,14 @@ const {
   resizeImage,
 } = require('../controllers/categoryController');
 
-const subcategoriesRouter = require('./subcategoryRoutes');
-const productsRouter = require('./productRoutes');
+const subcategoryRouter = require('./subcategoryRoutes');
+const productRouter = require('./productRoutes');
 
 const authController = require('../controllers/authController');
 
-router.use('/:categoryId/subcategories', getCategorySubcategoriesValidator, subcategoriesRouter);
-// router.use('/:categoryId/subcategories/:subcategoryId/products', productsRouter);
-router.use('/:categoryId/products', getCategorySubcategoriesValidator, productsRouter);
+router.use('/:categoryId/subcategories', getCategorySubcategoriesValidator, subcategoryRouter);
+// router.use('/:categoryId/subcategories/:subcategoryId/products', productRouter);
+router.use('/:categoryId/products', getCategorySubcategoriesValidator, productRouter);
 
 router
   .route('/')
@@ -33,8 +33,8 @@ router
     authController.protect,
     authController.restrictTo('admin', 'manager'),
     uploadCategoryImage,
-    resizeImage,
     createCategoryValidator,
+    resizeImage,
     createCategory,
   );
 router
@@ -44,8 +44,8 @@ router
     authController.protect,
     authController.restrictTo('admin', 'manager'),
     uploadCategoryImage,
-    resizeImage,
     updateCategoryValidator,
+    resizeImage,
     updateCategory,
   )
   .delete(

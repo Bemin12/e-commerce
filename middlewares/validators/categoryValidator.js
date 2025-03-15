@@ -24,10 +24,21 @@ exports.createCategoryValidator = [
     .withMessage('Too short category name')
     .isLength({ max: 32 })
     .withMessage('Too long category name'),
-  check('image')
-    .optional()
-    .matches(/\.(jpg|jpeg|png)$/i)
-    .withMessage('Image must be jpg, jpeg, or png format'),
+  // check('image')
+  //   .optional()
+  //   .matches(/\.(jpg|jpeg|png)$/i)
+  //   .withMessage('Image must be jpg, jpeg, or png format'),
+  check('image').custom((value, { req }) => {
+    if (value === '') throw new Error("Don't provide empty image");
+
+    if (req.file) {
+      if (!/\.(jpg|jpeg|png)$/i.test(req.file.originalname)) {
+        throw new Error('Image must be jpg, jpeg, or png format');
+      }
+    }
+
+    return true;
+  }),
 
   validatorMiddleware,
 ];
@@ -40,10 +51,22 @@ exports.updateCategoryValidator = [
     .withMessage('Too short category name')
     .isLength({ max: 32 })
     .withMessage('Too long category name'),
-  check('image')
-    .optional()
-    .matches(/\.(jpg|jpeg|png)$/i)
-    .withMessage('Image must be jpg, jpeg, or png format'),
+  // check('image')
+  //   .optional()
+  //   .matches(/\.(jpg|jpeg|png)$/i)
+  //   .withMessage('Image must be jpg, jpeg, or png format'),
+  check('image').custom((value, { req }) => {
+    if (value === '') throw new Error("Don't provide empty image");
+
+    if (req.file) {
+      if (!/\.(jpg|jpeg|png)$/i.test(req.file.originalname)) {
+        throw new Error('Image must be jpg, jpeg, or png format');
+      }
+    }
+
+    return true;
+  }),
+
   validatorMiddleware,
 ];
 

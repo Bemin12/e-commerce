@@ -1,3 +1,4 @@
+const { mongoose } = require('mongoose');
 const sharp = require('sharp');
 const Product = require('../models/productModel');
 const factory = require('./handlerFactory');
@@ -10,6 +11,8 @@ exports.uploadProductImages = uploadMixOfImages([
 ]);
 
 exports.resizeProductImages = asyncHandler(async (req, res, next) => {
+  // console.log(req.files);
+  // console.log(req.body);
   if (!req.files?.imageCover && !req.files?.images) return next();
 
   if (req.files.imageCover) {
@@ -44,6 +47,20 @@ exports.resizeProductImages = asyncHandler(async (req, res, next) => {
   next();
 });
 
+// For nested routes
+// GET /api/v1/categories/:categoryId/products
+// GET /api/v1/subcategories/:subcategoryId/products
+exports.createFilterObj = (req, res, next) => {
+  let filterObj = {};
+  if (req.params.categoryId)
+    filterObj = { category: new mongoose.Types.ObjectId(req.params.categoryId) };
+  if (req.params.subcategoryId)
+    filterObj = { subcategories: new mongoose.Types.ObjectId(req.params.subcategoryId) };
+
+  req.filterObj = filterObj;
+  next();
+};
+
 // @desc    Get list of products
 // @route   GET /api/v1/products
 // @access  Public
@@ -56,15 +73,15 @@ exports.getProduct = factory.getOne(Product);
 
 // @desc    Create product
 // @route   POST /api/v1/products
-// @access  Private
+// @access  Protected: Admin, Manager
 exports.createProduct = factory.createOne(Product);
 
 // @desc    Update specific product
 // @route   PATCH /api/v1/products/:id
-// @access  Private
+// @access  Protected: Admin, Manager
 exports.updateProduct = factory.updateOne(Product);
 
 // @desc    Delete specific product
 // @route   DELETE /api/v1/products/:id
-// @access  Private
+// @access  Protected: Admin
 exports.deleteProduct = factory.deleteOne(Product);

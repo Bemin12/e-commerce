@@ -21,8 +21,22 @@ describe('product validator', () => {
           description: 'Valid description text that is long enough',
           quantity: 5,
           price: 50000,
-          imageCover: 'image.jpg',
           category: '67c82c1802303f379982ebd0',
+        },
+        files: {
+          imageCover: [
+            {
+              originalname: 'cover.jpg',
+            },
+          ],
+          images: [
+            {
+              originalname: 'image1.jpg',
+            },
+            {
+              originalname: 'image2.jpg',
+            },
+          ],
         },
       };
       res = {
@@ -135,19 +149,19 @@ describe('product validator', () => {
 
     describe('imageCover', () => {
       it('should fail if "imageCover" is missing', async () => {
-        delete req.body.imageCover;
+        delete req.files.imageCover;
         runValidators(400, 'failed', 'imageCover', 'Product imageCover is required');
       });
 
       it('should fail for invalid "imageCover" format', async () => {
-        req.body.imageCover = 'image.mp4';
+        req.files.imageCover[0].originalname = 'image.mp4';
         runValidators(400, 'failed', 'imageCover', 'Image must be jpg, jpeg, or png format');
       });
     });
 
     describe('images', () => {
       it('should fail for invalid "images"', async () => {
-        req.body.images = ['video.mp4'];
+        req.files.images[0].originalname = ['video.mp4'];
         runValidators(400, 'failed', 'images', 'Images must be jpg, jpeg, or png format');
       });
     });
@@ -169,7 +183,7 @@ describe('product validator', () => {
           400,
           'failed',
           'category',
-          'No category for this id: 67c82c1802303f379982ebd0',
+          'No category found with this id: 67c82c1802303f379982ebd0',
         );
       });
     });
@@ -182,7 +196,7 @@ describe('product validator', () => {
 
       it('should fail for invalid "subcategories" Ids', async () => {
         req.body.subcategories = ['invalid'];
-        runValidators(400, 'failed', 'subcategories', 'Invalid subcategory Id format');
+        runValidators(400, 'failed', 'subcategories', 'Invalid subcategory id format');
       });
 
       it('should fail if found "subcategories" length is less than provided Ids', async () => {
@@ -193,7 +207,7 @@ describe('product validator', () => {
     });
 
     describe('brand', () => {
-      it('should fail for invalid "brand" Id format', async () => {
+      it('should fail for invalid "brand" id format', async () => {
         req.body.brand = 'invalid';
         runValidators(400, 'failed', 'brand', 'Invalid brand id format');
       });

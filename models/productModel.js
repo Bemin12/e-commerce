@@ -66,21 +66,70 @@ const productSchema = new mongoose.Schema(
       type: Number,
       min: [1, 'Rating must be above or equal to 1'],
       max: [5, 'Rating must be below or equal to 5'],
+      set: (val) => Math.floor(val * 10) / 10,
     },
     ratingsQuantity: {
       type: Number,
       default: 0,
     },
   },
-  { timestamps: true },
+  { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } },
 );
 
 // productSchema.pre('save', function () {
 //   this.slug = slugify(this.name, { lower: true });
 // });
 
+productSchema.virtual('reviews', {
+  ref: 'Review',
+  localField: '_id',
+  foreignField: 'product',
+  options: {
+    sort: '-createdAt',
+    limit: 10,
+  },
+});
+
+// Populate the populated virtual 'reviews' property
+productSchema.pre(/^findOne/, function (next) {
+  this.populate('reviews');
+  next();
+});
+
 productSchema.pre(/^find/, function (next) {
   this.populate('category', 'name -_id');
+  next();
+});
+
+productSchema.pre('aggregate', function (next) {
+  // skip getting populating category when we get products for specific category
+  if (this.pipeline()[0]?.$match?.category) return next();
+
+  this.pipeline().splice(
+    -2,
+    0,
+    {
+      $lookup: {
+        from: 'categories',
+        localField: 'category',
+        foreignField: '_id',
+        pipeline: [
+          {
+            $project: {
+              name: 1,
+            },
+          },
+        ],
+        as: 'category',
+      },
+    },
+    {
+      $unwind: {
+        path: '$category',
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+  );
   next();
 });
 

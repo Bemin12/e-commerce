@@ -38,14 +38,21 @@ exports.getAll = (Model) =>
 // Approach 2 (Aggregation) | One database trip by using $facet stage in aggregation pipeline |
 exports.getAll = (Model) =>
   asyncHandler(async (req, res, next) => {
-    let filterObj = {};
-    if (req.params.categoryId)
-      filterObj = { category: new mongoose.Types.ObjectId(req.params.categoryId) };
-    if (req.params.subcategoryId)
-      filterObj = { subcategories: new mongoose.Types.ObjectId(req.params.subcategoryId) };
+    // let filterObj = {};
+    // if (req.params.categoryId)
+    //   filterObj = { category: new mongoose.Types.ObjectId(req.params.categoryId) };
+    // if (req.params.subcategoryId)
+    //   filterObj = { subcategories: new mongoose.Types.ObjectId(req.params.subcategoryId) };
+    // if (req.params.productId)
+    //   filterObj = { product: new mongoose.Types.ObjectId(req.params.productId) };
 
-    console.log(filterObj);
-    const features = new APIFeatures(Model.aggregate([{ $match: filterObj }]), req.query)
+    console.log(req.filterObj);
+    let filter = {};
+    if (req.filterObj) {
+      filter = req.filterObj;
+    }
+
+    const features = new APIFeatures(Model.aggregate([{ $match: filter }]), req.query)
       .filter()
       .search()
       .sort()
@@ -53,6 +60,7 @@ exports.getAll = (Model) =>
       .paginate();
 
     const [{ data: docs, count }] = await features.aggregation;
+    console.log(features.aggregation._pipeline);
     const resourceName = `${getResourceName(Model)}s`;
 
     res.status(200).json({
@@ -68,7 +76,12 @@ exports.getOne = (Model) =>
     // const { query } = new APIFeatures(Model.findById(req.params.id), req.query).limitFields();
     // const doc = await query;
 
-    const doc = await Model.findById(req.params.id);
+    let query = Model.findById(req.params.id);
+    if (req.query?.fields) {
+      const fields = req.query.fields.split(',').join(' ');
+      query = query.select(fields);
+    }
+    const doc = await query;
     const resourceName = getResourceName(Model);
 
     if (!doc) {
@@ -91,7 +104,7 @@ exports.createOne = (Model) =>
 exports.updateOne = (Model) =>
   asyncHandler(async (req, res, next) => {
     if (req.body.name) req.body.slug = slugify(req.body.name, { lower: true });
-
+    // console.log(req.body);
     const doc = await Model.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true,
@@ -114,5 +127,5 @@ exports.deleteOne = (Model) =>
       return next(new APIError(`No ${resourceName} found with this is`, 404));
     }
 
-    res.status(201).send();
+    res.status(204).send();
   });

@@ -15,7 +15,11 @@ const userSchema = new mongoose.Schema({
     lowercase: true,
   },
   phone: String,
-  profileImg: String,
+  profileImg: {
+    type: String,
+    default:
+      'https://res.cloudinary.com/dxbiecqpq/image/upload/v1718013705/rzjkgteqrnkfxiwo6acx.png',
+  },
   password: {
     type: String,
     required: [true, 'Please provide a password'],
