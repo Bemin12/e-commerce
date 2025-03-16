@@ -34,15 +34,15 @@ exports.getBrand = factory.getOne(Brand);
 
 // @desc    Create brand
 // @route   POST /api/v1/brands
-// @access  Private
+// @access  Protected: Admin, Manager
 exports.createBrand = factory.createOne(Brand);
 
 // @desc    Update specific brand
 // @route   PATCH /api/v1/brands/:id
-// @access  Private
+// @access  Protected: Admin, Manager
 exports.updateBrand = factory.updateOne(Brand);
 
 // @desc    Delete specific brand
 // @route   DELETE /api/v1/brands/:id
-// @access  Private
+// @access  Protected: Admin
 exports.deleteBrand = factory.deleteOne(Brand);

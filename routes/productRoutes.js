@@ -4,6 +4,7 @@ const {
   createProductValidator,
   updateProductValidator,
   deleteProductValidator,
+  getProductReviewsValidator,
 } = require('../middlewares/validators/productValidator');
 
 const {
@@ -14,19 +15,24 @@ const {
   deleteProduct,
   uploadProductImages,
   resizeProductImages,
+  createFilterObj,
 } = require('../controllers/productController');
 
 const { protect, restrictTo } = require('../controllers/authController');
 
+const reviewRouter = require('./reviewRoutes');
+
+router.use('/:productId/reviews', getProductReviewsValidator, reviewRouter);
+
 router
   .route('/')
-  .get(getProducts)
+  .get(createFilterObj, getProducts)
   .post(
     protect,
     restrictTo('admin', 'manager'),
     uploadProductImages,
-    resizeProductImages,
     createProductValidator,
+    resizeProductImages,
     createProduct,
   );
 router
@@ -36,8 +42,8 @@ router
     protect,
     restrictTo('admin', 'manager'),
     uploadProductImages,
-    resizeProductImages,
     updateProductValidator,
+    resizeProductImages,
     updateProduct,
   )
   .delete(protect, restrictTo('admin'), deleteProductValidator, deleteProduct);

@@ -138,6 +138,24 @@ exports.restrictTo =
     next();
   };
 
+exports.restrictToOwner = (Model) =>
+  asyncHandler(async (req, res, next) => {
+    let query = Model.findById(req.params.id);
+    query.skipPopulation = true; // defined property to skip user population in reviewModel
+
+    const doc = await query;
+    if (!doc) {
+      return next(new APIError(`No ${Model.modelName.toLowerCase()} found with this id`, 404));
+    }
+
+    const resourceOwner = doc.user;
+    if (!req.user._id.equals(resourceOwner._id) && req.user.role !== 'admin') {
+      return next(new APIError('You do not have the permission to perform this action', 403));
+    }
+
+    next();
+  });
+
 // @desc    Refresh access token and rotate refresh token
 // @route   POST /api/v1/auth/refreshToken
 // @access  Public - needs a valid refresh token
@@ -170,7 +188,7 @@ exports.refreshToken = asyncHandler(async (req, res, next) => {
 
 // @desc    Update current user password
 // @route   PATCH /api/v1/auth/updateMyPassword
-// @access  Private[Protect]
+// @access  Protected
 exports.updatePassword = asyncHandler(async (req, res, next) => {
   const { passwordCurrent, password } = req.body;
 

@@ -4,6 +4,7 @@ const {
   createSubcategoryValidator,
   updateSubcategoryValidator,
   deleteSubcategoryValidator,
+  getSubcategoryProductsValidator,
 } = require('../middlewares/validators/subcategoryValidator');
 
 const {
@@ -13,16 +14,17 @@ const {
   updateSubcategory,
   deleteSubcategory,
   setcategoryIdToBody,
+  createFilterObj,
 } = require('../controllers/subcategoryController');
 
 const authController = require('../controllers/authController');
-const productsRouter = require('./productRoutes');
+const productRouter = require('./productRoutes');
 
-router.use('/:subcategoryId/products', productsRouter);
+router.use('/:subcategoryId/products', getSubcategoryProductsValidator, productRouter);
 
 router
   .route('/')
-  .get(getSubcategories)
+  .get(createFilterObj, getSubcategories)
   .post(
     authController.protect,
     authController.restrictTo('admin', 'manager'),

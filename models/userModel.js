@@ -2,6 +2,14 @@ const crypto = require('crypto');
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 
+const addressSchema = new mongoose.Schema({
+  alias: String, // home, work, ...
+  details: String,
+  phone: String,
+  city: String,
+  postalCode: String,
+});
+
 const userSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -15,7 +23,11 @@ const userSchema = new mongoose.Schema({
     lowercase: true,
   },
   phone: String,
-  profileImg: String,
+  profileImg: {
+    type: String,
+    default:
+      'https://res.cloudinary.com/dxbiecqpq/image/upload/v1718013705/rzjkgteqrnkfxiwo6acx.png',
+  },
   password: {
     type: String,
     required: [true, 'Please provide a password'],
@@ -41,6 +53,13 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  wishlist: [
+    {
+      type: mongoose.Schema.ObjectId,
+      ref: 'Product',
+    },
+  ],
+  addresses: [addressSchema],
 });
 
 userSchema.pre('save', async function (next) {
