@@ -18,6 +18,8 @@ const productRouter = require('./routes/productRoutes');
 const userRouter = require('./routes/userRoutes');
 const authRouter = require('./routes/authRoutes');
 const reviewRouter = require('./routes/reviewRoutes');
+const wishlistRouter = require('./routes/wishlistRoutes');
+const addressRouter = require('./routes/addressRoutes');
 
 // Connect with db
 dbConnection();
@@ -57,6 +59,8 @@ app.use('/api/v1/products', productRouter);
 app.use('/api/v1/users', userRouter);
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/reviews', reviewRouter);
+app.use('/api/v1/wishlist', wishlistRouter);
+app.use('/api/v1/addresses', addressRouter);
 
 app.all('*', (req, res, next) => {
   next(new APIError(`Can't find ${req.originalUrl} on this server`, 404));
@@ -72,7 +76,7 @@ const server = app.listen(8000, () => {
 
 // Handle Unhandled Rejections outside express
 process.on('unhandledRejection', (err) => {
-  console.log(`Uhandled Rejection Error: ${err.name} | ${err.message}`);
+  console.log(`Unhandled Rejection Error: ${err.name} | ${err.message}`);
   console.log(err.stack);
   server.close(() => {
     console.log('Shutting down...');
