@@ -10,16 +10,8 @@ dotenv.config({ path: 'config.env' });
 const APIError = require('./utils/apiError');
 const globalErrorHandler = require('./middlewares/errorMiddleware');
 const dbConnection = require('./config/database');
-
-const categoryRouter = require('./routes/categoryRoutes');
-const subcategoryRouter = require('./routes/subcategoryRoutes');
-const brandRouter = require('./routes/brandRoutes');
-const productRouter = require('./routes/productRoutes');
-const userRouter = require('./routes/userRoutes');
-const authRouter = require('./routes/authRoutes');
-const reviewRouter = require('./routes/reviewRoutes');
-const wishlistRouter = require('./routes/wishlistRoutes');
-const addressRouter = require('./routes/addressRoutes');
+//Routes
+const mountRoutes = require('./routes');
 
 // Connect with db
 dbConnection();
@@ -52,15 +44,7 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // Mount Routes
-app.use('/api/v1/categories', categoryRouter);
-app.use('/api/v1/subcategories', subcategoryRouter);
-app.use('/api/v1/brands', brandRouter);
-app.use('/api/v1/products', productRouter);
-app.use('/api/v1/users', userRouter);
-app.use('/api/v1/auth', authRouter);
-app.use('/api/v1/reviews', reviewRouter);
-app.use('/api/v1/wishlist', wishlistRouter);
-app.use('/api/v1/addresses', addressRouter);
+mountRoutes(app);
 
 app.all('*', (req, res, next) => {
   next(new APIError(`Can't find ${req.originalUrl} on this server`, 404));
