@@ -7,6 +7,7 @@ const refreshTokenSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
+      index: true,
     },
     user: {
       type: mongoose.Schema.ObjectId,
@@ -21,6 +22,7 @@ const refreshTokenSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+// TTL index
 refreshTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 refreshTokenSchema.pre('save', function (next) {
