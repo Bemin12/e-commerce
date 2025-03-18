@@ -50,7 +50,7 @@ describe('authValidator', () => {
       });
 
       it('should fail if email is not valid', async () => {
-        req.body.email = 'invlid@gmail';
+        req.body.email = 'invalid@gmail';
         await Promise.all(signupValidator.map((validator) => validator(req, res, next)));
         validatorMiddleware(req, res, next);
 
