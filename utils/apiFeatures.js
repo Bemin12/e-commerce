@@ -105,6 +105,10 @@ class APIFeatures {
       JSON.stringify(queryObj).replace(/\b(lt|lte|gt|gte)\b/g, (match) => `$${match}`),
     );
 
+    // multiple price filtering: {price: [50, 100]} => {price: {$in: [50, 100]}} - Don't have to do this in the first approach
+    if (Array.isArray(queryObj.price)) queryObj.price = { $in: queryObj.price };
+
+    // Function to parse string numbers to numbers - Don't have to do this in the first approach
     const parseValue = (value) => {
       if (typeof value === 'object') {
         Object.keys(value).forEach((key) => (value[key] = parseValue(value[key])));

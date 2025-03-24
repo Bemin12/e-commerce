@@ -65,10 +65,10 @@ exports.verifyEmail = asyncHandler(async (req, res, next) => {
     {
       new: true,
     },
-  );
+  ).select('-addresses -wishlist');
 
   if (!user) {
-    return next(new APIError('Invalid or expired verirfication code', 400));
+    return next(new APIError('Invalid or expired verification code', 400));
   }
 
   createSendTokens(200, user, req, res);
@@ -84,7 +84,7 @@ exports.login = asyncHandler(async (req, res, next) => {
     return next(new APIError('Please provide email and password', 400));
   }
 
-  const user = await User.findOne({ email }).select('+password');
+  const user = await User.findOne({ email }).select('+password -addresses -wishlist');
 
   if (!user || !(await user.correctPassword(password))) {
     return next(new APIError('Incorrect email or password', 400));
@@ -110,7 +110,7 @@ exports.protect = asyncHandler(async (req, res, next) => {
 
   const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
 
-  const currentUser = await User.findById(decoded.id);
+  const currentUser = await User.findById(decoded.id).select('-addresses');
   if (!currentUser) {
     return next(new APIError('The user belonging to this token does no longer exist', 401));
   }
@@ -149,7 +149,11 @@ exports.restrictToOwner = (Model) =>
     }
 
     const resourceOwner = doc.user;
-    if (!req.user._id.equals(resourceOwner._id) && req.user.role !== 'admin') {
+    if (
+      !req.user._id.equals(resourceOwner._id) &&
+      req.user.role !== 'admin' &&
+      req.user.role !== 'manager'
+    ) {
       return next(new APIError('You do not have the permission to perform this action', 403));
     }
 
