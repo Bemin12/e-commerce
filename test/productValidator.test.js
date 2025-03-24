@@ -94,12 +94,12 @@ describe('product validator', () => {
     });
 
     describe('quantity', () => {
-      it('should fail if quanitity is missing', async () => {
+      it('should fail if quantity is missing', async () => {
         delete req.body.quantity;
         runValidators(400, 'failed', 'quantity', 'Product quantity is required');
       });
 
-      it('should fail for negative quanitity ', async () => {
+      it('should fail for negative quantity ', async () => {
         req.body.quantity = -1;
         runValidators(400, 'failed', 'quantity', 'Product quantity must be a positive integer');
       });

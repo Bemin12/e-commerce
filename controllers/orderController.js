@@ -13,107 +13,6 @@ const User = require('../models/userModel');
 // @desc    Create cash order
 // @route   POST /api/v1/orders
 // @access  Protected: User
-/*
-exports.createCashOrder = asyncHandler(async (req, res, next) => {
-  const { shippingAddress } = req.body;
-
-  // Get current user cart
-  let cart = await Cart.findOne({ user: req.user._id }).populate({
-    path: 'cartItems.product',
-    select: 'name imageCover price quantity',
-    options: { skipPopulation: true },
-  });
-
-  if (!cart) {
-    return next(new APIError('There is no cart for this user', 404));
-  }
-
-  // Check if any product becomes unavailable or a change happened in the stock
-  const productsChanged = cart.detectProductQuantityAvailability();
-  if (productsChanged.length) {
-    return res.status(200).json({
-      status: 'warn',
-      message: 'Some products are no longer available or are in less than the required quantity.',
-      data: { productsChanged },
-    });
-  }
-
-  // Check if a change in a product price in the cart happened
-  const priceChange = cart.detectPriceChange();
-  // If there is a change, the cart will be updated with the new price and the order will be cancelled to warn user
-  if (priceChange) {
-    cart = await cart.save();
-    return res.status(200).json({
-      status: 'warn',
-      message:
-        'There are some changes happened to product prices in the cart. Please reconfirm the order',
-      data: { cart },
-    });
-  }
-
-  // Set cart price to the total price after discount if a coupon is applied
-  const cartPrice = cart.totalPriceAfterDiscount
-    ? cart.totalPriceAfterDiscount
-    : cart.totalCartPrice;
-
-  // Add tax and shipping to total price
-  const taxPrice = 0;
-  const shippingPrice = 0;
-  const totalPrice = cartPrice + taxPrice + shippingPrice;
-
-  // Set order items
-  const orderItems = cart.cartItems.map((item) => ({
-    product: item.product._id,
-    name: item.product.name,
-    imageCover: item.product.imageCover,
-    price: item.product.price,
-    quantity: item.quantity,
-    color: item.color,
-  }));
-
-  // Start session and transaction
-  const session = await mongoose.startSession();
-  try {
-    session.startTransaction();
-    // Create the order
-    const order = await Order.create(
-      [
-        {
-          user: req.user._id,
-          orderItems,
-          shippingAddress,
-          totalPrice,
-        },
-      ],
-      { session },
-    );
-
-    // Product `quantity` and `sold` updates
-    const writes = cart.cartItems.map((item) => ({
-      updateOne: {
-        filter: { _id: item.product._id },
-        update: { $inc: { quantity: -item.quantity, sold: item.quantity } },
-      },
-    }));
-
-    // Update products
-    await Product.bulkWrite(writes, { session });
-
-    // Delete user cart
-    await Cart.deleteOne({ user: req.user._id }, { session });
-
-    // Commit transaction
-    await session.commitTransaction();
-
-    res.status(201).json({ status: 'success', data: { order } });
-  } catch (err) {
-    await session.abortTransaction();
-    next(new APIError(`Checkout failed: ${err.message}`));
-  } finally {
-    session.endSession();
-  }
-});
-*/
 exports.createCashOrder = asyncHandler(async (req, res, next) => {
   const { shippingAddress } = req.body;
 
@@ -425,3 +324,106 @@ exports.webhookCheckout = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({ received: true });
 });
+
+// createCashOrder using session.startTransaction() instead of session.withTransaction()
+/*
+exports.createCashOrder = asyncHandler(async (req, res, next) => {
+  const { shippingAddress } = req.body;
+
+  // Get current user cart
+  let cart = await Cart.findOne({ user: req.user._id }).populate({
+    path: 'cartItems.product',
+    select: 'name imageCover price quantity',
+    options: { skipPopulation: true },
+  });
+
+  if (!cart) {
+    return next(new APIError('There is no cart for this user', 404));
+  }
+
+  // Check if any product becomes unavailable or a change happened in the stock
+  const productsChanged = cart.detectProductQuantityAvailability();
+  if (productsChanged.length) {
+    return res.status(200).json({
+      status: 'warn',
+      message: 'Some products are no longer available or are in less than the required quantity.',
+      data: { productsChanged },
+    });
+  }
+
+  // Check if a change in a product price in the cart happened
+  const priceChange = cart.detectPriceChange();
+  // If there is a change, the cart will be updated with the new price and the order will be cancelled to warn user
+  if (priceChange) {
+    cart = await cart.save();
+    return res.status(200).json({
+      status: 'warn',
+      message:
+        'There are some changes happened to product prices in the cart. Please reconfirm the order',
+      data: { cart },
+    });
+  }
+
+  // Set cart price to the total price after discount if a coupon is applied
+  const cartPrice = cart.totalPriceAfterDiscount
+    ? cart.totalPriceAfterDiscount
+    : cart.totalCartPrice;
+
+  // Add tax and shipping to total price
+  const taxPrice = 0;
+  const shippingPrice = 0;
+  const totalPrice = cartPrice + taxPrice + shippingPrice;
+
+  // Set order items
+  const orderItems = cart.cartItems.map((item) => ({
+    product: item.product._id,
+    name: item.product.name,
+    imageCover: item.product.imageCover,
+    price: item.product.price,
+    quantity: item.quantity,
+    color: item.color,
+  }));
+
+  // Start session and transaction
+  const session = await mongoose.startSession();
+  try {
+    session.startTransaction();
+    // Create the order
+    const order = await Order.create(
+      [
+        {
+          user: req.user._id,
+          orderItems,
+          shippingAddress,
+          totalPrice,
+        },
+      ],
+      { session },
+    );
+
+    // Product `quantity` and `sold` updates
+    const writes = cart.cartItems.map((item) => ({
+      updateOne: {
+        filter: { _id: item.product._id },
+        update: { $inc: { quantity: -item.quantity, sold: item.quantity } },
+      },
+    }));
+
+    // Update products
+    await Product.bulkWrite(writes, { session });
+
+    // Delete user cart
+    await Cart.deleteOne({ user: req.user._id }, { session });
+
+    // Commit transaction
+    await session.commitTransaction();
+
+    res.status(201).json({ status: 'success', data: { order } });
+  } catch (err) {
+    await session.abortTransaction();
+    next(new APIError(`Checkout failed: ${err.message}`));
+  } finally {
+    session.endSession();
+  }
+});
+*/

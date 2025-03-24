@@ -237,7 +237,7 @@ exports.forgotPassword = asyncHandler(async (req, res, next) => {
   const resetCode = user.createPasswordResetCode();
   await user.save();
 
-  // for existance of frontend we can replace a url to the website
+  // for existence of frontend we can replace a url to the website
   // const url = `${req.protocol}://${req.get('host')}/api/v1/auth/resetPassword/${token}`;
 
   try {
