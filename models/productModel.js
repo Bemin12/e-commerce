@@ -97,12 +97,15 @@ productSchema.pre(/^findOne/, function (next) {
 });
 
 productSchema.pre(/^find/, function (next) {
+  if (this.getOptions().skipPopulation) return next(); // used in getCurrentUserCart when populating the product to skip populating the category
+
   this.populate('category', 'name -_id');
   next();
 });
 
+// To get category details upon get all products request
 productSchema.pre('aggregate', function (next) {
-  // skip getting populating category when we get products for specific category
+  // Skip getting category details if products were requested for specific category
   if (this.pipeline()[0]?.$match?.category) return next();
 
   this.pipeline().splice(

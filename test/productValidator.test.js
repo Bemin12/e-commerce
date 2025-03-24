@@ -46,6 +46,7 @@ describe('product validator', () => {
       next = jest.fn();
     });
 
+    // Reusable function for test cases
     const runValidators = async (statusCode, status, field, message) => {
       await Promise.all(createProductValidator.map((validator) => validator(req, res, next)));
       validatorMiddleware(req, res, next);

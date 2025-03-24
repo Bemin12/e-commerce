@@ -32,6 +32,9 @@ exports.addProductToCart = asyncHandler(async (req, res, next) => {
 
   // Make sure that there's sufficient quantity
   if (quantity > product.quantity) {
+    if (product.quantity === 0) {
+      return next(new APIError(`Product is out of stock`, 400));
+    }
     return next(
       new APIError(
         `Only ${product.quantity} items available in the stock, requested are ${quantity}`,
@@ -122,10 +125,33 @@ exports.addProductToCart = asyncHandler(async (req, res, next) => {
 // @route   GET /api/v1/cart
 // @access  Protected: User
 exports.getCurrentUserCart = asyncHandler(async (req, res, next) => {
-  const cart = await Cart.findOne({ user: req.user._id });
+  let cart = await Cart.findOne({ user: req.user._id }).populate({
+    path: 'cartItems.product',
+    select: 'name price quantity imageCover',
+    options: { skipPopulation: true }, // to skip populating the product category in productModel
+  });
 
   if (!cart) {
     return next(new APIError('There is no cart for this user', 404));
+  }
+
+  // Check if any product becomes unavailable or a change happened in the stock
+  const productsChanged = cart.detectProductQuantityAvailability();
+  if (productsChanged.length) {
+    cart.cartItems = productsChanged;
+    return res.status(200).json({
+      status: 'warn',
+      message: 'Some changes happened to the products in cart items',
+      data: { cart },
+    });
+  }
+
+  // Check if a change in a product price in the cart happened
+  const priceChange = cart.detectPriceChange();
+
+  // If there is a change, the cart will be updated with the new price
+  if (priceChange) {
+    cart = await cart.save();
   }
 
   res

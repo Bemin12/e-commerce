@@ -1,17 +1,28 @@
 const path = require('path');
-const fs = require('fs');
 
 const dotenv = require('dotenv');
 const express = require('express');
 const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
+const cors = require('cors');
+const rateLimit = require('express-rate-limit');
+const compression = require('compression');
+const helmet = require('helmet');
+const mongoSanitizer = require('express-mongo-sanitize');
+const hpp = require('hpp');
 
 dotenv.config({ path: 'config.env' });
 const APIError = require('./utils/apiError');
 const globalErrorHandler = require('./middlewares/errorMiddleware');
 const dbConnection = require('./config/database');
-//Routes
+const createUploadDirectories = require('./utils/createUploadDirectory');
+const orderController = require('./controllers/orderController');
+const sanitizeXss = require('./middlewares/xssMiddleware');
+// Routes
 const mountRoutes = require('./routes');
+
+// Create main uploads directory if it doesn't exist with model-specific subdirectories
+createUploadDirectories();
 
 // Connect with db
 dbConnection();
@@ -19,29 +30,52 @@ dbConnection();
 // express app
 const app = express();
 
-// Create main uploads directory if it doesn't exist
-const uploadDir = './uploads';
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir);
-}
-
-// Create model-specific subdirectories
-const modelDirs = ['categories', 'brands', 'products'];
-modelDirs.forEach((dir) => {
-  const modelDir = path.join(uploadDir, dir);
-  if (!fs.existsSync(modelDir)) {
-    fs.mkdirSync(modelDir);
-  }
-});
+app.set('trust proxy', process.env.NODE_ENV === 'production');
 
 // Middlewares
-app.use(express.json());
-app.use(cookieParser());
-app.use(express.static(path.join(__dirname, 'uploads')));
 
+// Enable CORS
+app.use(cors());
+app.options('*', cors());
+
+app.use(helmet());
+
+// Apply rate limit
+const limiter = rateLimit({
+  max: 100,
+  windowMs: 30 * 60 * 1000,
+  message: 'Too many requests from this IP, please try again in half an hour',
+  validate: { xForwardedForHeader: false },
+});
+app.use('/api', limiter);
+
+// Development logging
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
+
+// Stripe checkout webhook
+app.post(
+  '/webhook-checkout',
+  express.raw({ type: 'application/json' }),
+  orderController.webhookCheckout,
+);
+
+app.use(express.json({ limit: '10kb' }));
+app.use(cookieParser());
+app.use(express.static(path.join(__dirname, 'uploads')));
+
+// Data sanitization against NoSQL query injection
+app.use(mongoSanitizer());
+
+// Sanitize user input to prevent XSS
+app.use(sanitizeXss());
+
+// Prevent http parameter pollution
+app.use(hpp({ whitelist: ['ratingsAverage', 'ratingsQuantity', 'price', 'color'] }));
+
+// Compress the response
+app.use(compression());
 
 // Mount Routes
 mountRoutes(app);
