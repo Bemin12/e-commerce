@@ -1,4 +1,4 @@
-const { mongoose } = require('mongoose');
+const mongoose = require('mongoose');
 
 const asyncHandler = require('../utils/asyncHandler');
 const APIError = require('../utils/apiError');
@@ -10,17 +10,53 @@ const Coupon = require('../models/couponModel');
   Note:
     Some controllers have more than one implementation (found at the end of the file)
     The goal was to find a better and atomic approach, and doing less database trips to achieve the functionalities
-    The chosen approaches depend primarily on using MongoDB updates with aggregation with the least trips to the database to consider concurrency and avoid race conditions
+    The chosen approaches depend primarily on using MongoDB updates (maybe with aggregation) with the least trips to the database to consider concurrency and avoid race conditions
     The other implementations may deal with operations more in the application layer
     Controllers that has a comment like [ // controllerName - method number ] has another implementation or more below
 */
+
+const checkProductQuantity = (product, quantity, color) => {
+  let variant;
+  // Added product with color
+  if (color) {
+    variant = product.variants.find((prod) => prod.color === color.toLowerCase());
+    if (!variant) {
+      return new APIError('Product is not available with this color', 404);
+    }
+
+    if (quantity > variant.quantity) {
+      if (variant.quantity === 0) {
+        return new APIError(`Product is out of stock`, 400);
+      }
+      return new APIError(
+        `Only ${variant.quantity} items available in the stock, requested are ${quantity}`,
+        400,
+      );
+    }
+  }
+  // Added product without color
+  else if (quantity > product.quantity) {
+    if (product.quantity === 0) {
+      return new APIError(`Product is out of stock`, 400);
+    }
+    return new APIError(
+      `Only ${product.quantity} items available in the stock, requested are ${quantity}`,
+      400,
+    );
+  }
+
+  return variant;
+};
 
 // addProductToCart - method 1 using aggregation update - one database trip
 // @desc    Add product to cart
 // @route   POST /api/v1/cart
 // @access  Protected: User
+
 exports.addProductToCart = asyncHandler(async (req, res, next) => {
   const { productId, color, quantity = 1 } = req.body;
+
+  // const userCart = await Cart.findById(req.user._id);
 
   // Get the product from the database
   const product = await Product.findById(productId);
@@ -30,18 +66,8 @@ exports.addProductToCart = asyncHandler(async (req, res, next) => {
     return next(new APIError('No product found with this id', 404));
   }
 
-  // Make sure that there's sufficient quantity
-  if (quantity > product.quantity) {
-    if (product.quantity === 0) {
-      return next(new APIError(`Product is out of stock`, 400));
-    }
-    return next(
-      new APIError(
-        `Only ${product.quantity} items available in the stock, requested are ${quantity}`,
-        400,
-      ),
-    );
-  }
+  const variant = checkProductQuantity(product, quantity, color);
+  if (variant instanceof APIError) return next(variant);
 
   // Update the user cart if exists, or create one with the specified product
   const cart = await Cart.findOneAndUpdate(
@@ -60,7 +86,7 @@ exports.addProductToCart = asyncHandler(async (req, res, next) => {
                     input: { $ifNull: ['$cartItems', []] },
                     in: {
                       $and: [
-                        { $eq: ['$$this.product', productId] },
+                        { $eq: ['$$this.product', new mongoose.Types.ObjectId(productId)] },
                         { $eq: ['$$this.color', color] },
                       ],
                     },
@@ -73,11 +99,20 @@ exports.addProductToCart = asyncHandler(async (req, res, next) => {
                   input: '$cartItems',
                   in: {
                     $cond: [
-                      { $eq: ['$$this.product', productId] },
+                      {
+                        $and: [
+                          { $eq: ['$$this.product', new mongoose.Types.ObjectId(productId)] },
+                          { $eq: ['$$this.color', color] },
+                        ],
+                      },
                       {
                         $mergeObjects: [
                           '$$this',
-                          { quantity: { $add: ['$$this.quantity', quantity] } },
+                          {
+                            quantity: {
+                              $add: ['$$this.quantity', quantity],
+                            },
+                          },
                         ],
                       },
                       '$$this',
@@ -91,7 +126,7 @@ exports.addProductToCart = asyncHandler(async (req, res, next) => {
                   { $ifNull: ['$cartItems', []] },
                   [
                     {
-                      product: productId,
+                      product: new mongoose.Types.ObjectId(productId),
                       color,
                       quantity: quantity || 1,
                       price: product.price,
@@ -116,6 +151,38 @@ exports.addProductToCart = asyncHandler(async (req, res, next) => {
     { upsert: true, new: true, runValidators: true },
   );
 
+  // Extra step to check if the product was already in the cart and its quantity exceeded the available quantity after increasing it
+  let returnToOldState = false;
+  let variantInCart;
+  let itemInCart;
+  if (variant) {
+    // Get the product from the cart
+    variantInCart = cart.cartItems.find(
+      (item) => item.product.equals(product._id) && item.color === color,
+    );
+    // Check if the variant quantity is less than the updated quantity in cart
+    if (variant.quantity < variantInCart.quantity) {
+      returnToOldState = true;
+    }
+  } else {
+    itemInCart = cart.cartItems.find((it) => it.product.equals(product._id) && !it.color);
+    if (product.quantity < itemInCart.quantity) {
+      returnToOldState = true;
+    }
+  }
+
+  // Return the cart to its previous state and return an error
+  if (returnToOldState) {
+    const itemId = variant ? variantInCart._id : itemInCart._id;
+    await Cart.updateOne(
+      { user: req.user._id, 'cartItems._id': itemId },
+      {
+        $inc: { 'cartItems.$.quantity': -quantity, totalCartPrice: -(product.price * quantity) },
+      },
+    );
+    return next(new APIError('Quantity in cart exceeded the available quantity', 400));
+  }
+
   res
     .status(200)
     .json({ status: 'success', numberOfCartItems: cart.cartItems.length, data: { cart } });
@@ -127,7 +194,7 @@ exports.addProductToCart = asyncHandler(async (req, res, next) => {
 exports.getCurrentUserCart = asyncHandler(async (req, res, next) => {
   let cart = await Cart.findOne({ user: req.user._id }).populate({
     path: 'cartItems.product',
-    select: 'name price quantity imageCover',
+    select: 'name price quantity imageCover variants',
     options: { skipPopulation: true }, // to skip populating the product category in productModel
   });
 
@@ -136,13 +203,12 @@ exports.getCurrentUserCart = asyncHandler(async (req, res, next) => {
   }
 
   // Check if any product becomes unavailable or a change happened in the stock
-  const productsChanged = cart.detectProductQuantityAvailability();
-  if (productsChanged.length) {
-    cart.cartItems = productsChanged;
+  const { productChanged, cartObj } = cart.detectProductQuantityAvailability();
+  if (productChanged) {
     return res.status(200).json({
       status: 'warn',
       message: 'Some changes happened to the products in cart items',
-      data: { cart },
+      data: { cart: cartObj },
     });
   }
 
@@ -239,16 +305,11 @@ exports.updateCartItemQuantity = asyncHandler(async (req, res, next) => {
     return next(new APIError('There is no item for this id', 404));
   }
 
-  // Make sure that there's sufficient quantity
   const product = await Product.findById(itemToUpdate.product);
-  if (quantity > product.quantity) {
-    return next(
-      new APIError(
-        `Only ${product.quantity} items available in the stock, requested are ${quantity}`,
-        400,
-      ),
-    );
-  }
+
+  const check = checkProductQuantity(product, quantity, itemToUpdate.color);
+
+  if (check instanceof APIError) return next(check);
 
   // Update the cart
   // Calculate the difference between new and old quantity
@@ -298,8 +359,67 @@ exports.applyCoupon = asyncHandler(async (req, res, next) => {
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 // Other Methods Implementations
 
-// addProductToCart - method 2 - two database trips if cart exists
-/* 
+// addProductToCart - method 2
+/*
+exports.addProductToCart = asyncHandler(async (req, res, next) => {
+  const { productId, color, quantity = 1 } = req.body;
+
+  // Get the product from the database
+  const product = await Product.findById(productId);
+
+  // Throw error if there's no product with the specified id
+  if (!product) {
+    return next(new APIError('No product found with this id', 404));
+  }
+
+  // Make sure that there's sufficient quantity
+  const check = checkProductQuantity(product, quantity, color);
+  if (check instanceof APIError) return next(check);
+
+  let cart = await Cart.findOne({ user: req.user._id });
+
+  // Check for an existing cart for the user with the specified product and color and update product quantity and total price if so
+  cart = await Cart.findOneAndUpdate(
+    {
+      user: req.user._id,
+      cartItems: { $elemMatch: { product: productId, color } },
+    },
+    {
+      $inc: { 'cartItems.$.quantity': quantity, totalCartPrice: product.price * quantity },
+    },
+    { new: true, runValidators: true },
+  );
+
+  // Otherwise create a insert the product to user cart or create a new cart if no one exists (upsert)
+  if (!cart) {
+    cart = await Cart.findOneAndUpdate(
+      { user: req.user._id },
+      {
+        $push: {
+          cartItems: [
+            {
+              product: productId,
+              quantity,
+              color,
+              price: product.price,
+            },
+          ],
+        },
+        $inc: { totalCartPrice: quantity * product.price },
+        $setOnInsert: { user: req.user._id },
+      },
+      { upsert: true, new: true, runValidators: true },
+    );
+  }
+
+  res
+    .status(200)
+    .json({ status: 'success', numberOfCartItems: cart.cartItems.length, data: { cart } });
+});
+*/
+
+// addProductToCart - method 3
+/*
 exports.addProductToCart = asyncHandler(async (req, res, next) => {
   const { productId, color, quantity = 1 } = req.body;
 
@@ -308,6 +428,10 @@ exports.addProductToCart = asyncHandler(async (req, res, next) => {
   if (!product) {
     return next(new APIError('No product found with this id', 404));
   }
+
+  // Make sure that there's sufficient quantity
+  const variant = checkProductQuantity(product, quantity, color);
+  if (variant instanceof APIError) return next(variant);
 
   // Search for user car
   let cart = await Cart.findOne({ user: req.user._id });
@@ -330,8 +454,15 @@ exports.addProductToCart = asyncHandler(async (req, res, next) => {
     const itemIndex = cart.cartItems.findIndex(
       (item) => item.product.toString() === productId && item.color === color,
     );
-    // If the product exists in the cart, increment its quantity
+    // If the product exists in the cart, increment its quantity if it could be
     if (itemIndex !== -1) {
+      // Check if total quantity after increase exceed the product quantity
+      if (variant) {
+        if (cart.cartItems[itemIndex].quantity + quantity > variant.quantity)
+          return next(new APIError('Quantity in cart exceeded the available quantity', 400));
+      } else if (cart.cartItems[itemIndex].quantity + quantity > product.quantity)
+        return next(new APIError('Quantity in cart exceeded the available quantity', 400));
+
       cart.cartItems[itemIndex].quantity += quantity;
     } else {
       // If the product doesn't, push it into the cartItems array

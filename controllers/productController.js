@@ -4,6 +4,7 @@ const Product = require('../models/productModel');
 const factory = require('./handlerFactory');
 const asyncHandler = require('../utils/asyncHandler');
 const { uploadMixOfImages } = require('../middlewares/uploadImageMiddleware');
+const APIError = require('../utils/apiError');
 
 exports.uploadProductImages = uploadMixOfImages([
   { name: 'imageCover', maxCount: 1 },
@@ -85,3 +86,55 @@ exports.updateProduct = factory.updateOne(Product);
 // @route   DELETE /api/v1/products/:id
 // @access  Protected: Admin
 exports.deleteProduct = factory.deleteOne(Product);
+
+exports.addProductVariant = asyncHandler(async (req, res, next) => {
+  const { id: productId } = req.params;
+  const { color, quantity } = req.body;
+
+  const product = await Product.findByIdAndUpdate(
+    productId,
+    {
+      $push: { variants: { color, quantity } },
+    },
+    { new: true },
+  );
+
+  if (!product) {
+    return next(new APIError('Product not found', 404));
+  }
+
+  res.status(200).json({ status: 'success', data: { product } });
+});
+
+exports.updateProductVariantQuantity = asyncHandler(async (req, res, next) => {
+  const { id: productId, variantId } = req.params;
+  const { quantity } = req.body;
+
+  const product = await Product.findOneAndUpdate(
+    { _id: productId, 'variants._id': variantId },
+    { $set: { 'variants.$.quantity': quantity } },
+    { new: true },
+  );
+
+  if (!product) {
+    return next(new APIError('Product or variant not found', 404));
+  }
+
+  res.status(200).json({ status: 'success', data: { product } });
+});
+
+exports.removeProductVariant = asyncHandler(async (req, res, next) => {
+  const { id: productId, variantId } = req.params;
+
+  const product = await Product.findOneAndUpdate(
+    { _id: productId, 'variants._id': variantId },
+    { $pull: { variants: { _id: variantId } } },
+    { new: true },
+  );
+
+  if (!product) {
+    return next(new APIError('Product or variant not found', 404));
+  }
+
+  res.status(200).json({ status: 'success', data: { product } });
+});

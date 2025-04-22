@@ -21,7 +21,6 @@ const productSchema = new mongoose.Schema(
     },
     quantity: {
       type: Number,
-      required: [true, 'Product quantity is required'],
     },
     sold: {
       type: Number,
@@ -41,7 +40,15 @@ const productSchema = new mongoose.Schema(
         message: 'Discount price {{VALUE}} should be below regular price',
       },
     },
-    colors: [String],
+    variants: [
+      {
+        color: String,
+        quantity: {
+          type: Number,
+          required: [true, 'Product quantity is required'],
+        },
+      },
+    ],
     imageCover: {
       type: String,
       required: [true, 'Product image cover is required'],

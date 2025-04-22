@@ -10,6 +10,27 @@ const Cart = require('../models/cartModel');
 const Product = require('../models/productModel');
 const User = require('../models/userModel');
 
+// Function that generates MongoDB update operations for products in a cart
+const getProductWrites = (cart) =>
+  cart.cartItems.map((item) => {
+    // Handle products with color variants
+    if (item.color) {
+      return {
+        updateOne: {
+          filter: { _id: item.product._id, 'variants.color': item.color },
+          update: { $inc: { 'variants.$.quantity': -item.quantity, sold: item.quantity } },
+        },
+      };
+    }
+    // Handle products without color variants
+    return {
+      updateOne: {
+        filter: { _id: item.product._id },
+        update: { $inc: { quantity: -item.quantity, sold: item.quantity } },
+      },
+    };
+  });
+
 // @desc    Create cash order
 // @route   POST /api/v1/orders
 // @access  Protected: User
@@ -19,7 +40,7 @@ exports.createCashOrder = asyncHandler(async (req, res, next) => {
   // Get current user cart
   let cart = await Cart.findOne({ user: req.user._id }).populate({
     path: 'cartItems.product',
-    select: 'name imageCover price quantity',
+    select: 'name imageCover price quantity variants',
     options: { skipPopulation: true },
   });
 
@@ -90,12 +111,7 @@ exports.createCashOrder = asyncHandler(async (req, res, next) => {
       );
 
       // Product `quantity` and `sold` updates
-      const writes = cart.cartItems.map((item) => ({
-        updateOne: {
-          filter: { _id: item.product._id },
-          update: { $inc: { quantity: -item.quantity, sold: item.quantity } },
-        },
-      }));
+      const writes = getProductWrites(cart);
 
       // Update products
       await Product.bulkWrite(writes, { session });
@@ -244,7 +260,7 @@ const createCardOrder = async (stripeSession) => {
 
   const cart = await Cart.findById(stripeSession.client_reference_id).populate({
     path: 'cartItems.product',
-    select: 'name imageCover price quantity',
+    select: 'name imageCover price quantity variants',
     options: { skipPopulation: true },
   });
 
@@ -282,12 +298,7 @@ const createCardOrder = async (stripeSession) => {
     );
 
     // Product `quantity` and `sold` updates
-    const writes = cart.cartItems.map((item) => ({
-      updateOne: {
-        filter: { _id: item.product._id },
-        update: { $inc: { quantity: -item.quantity, sold: item.quantity } },
-      },
-    }));
+    const writes = getProductWrites(cart);
 
     // Update products
     await Product.bulkWrite(writes, { session });
@@ -333,7 +344,7 @@ exports.createCashOrder = asyncHandler(async (req, res, next) => {
   // Get current user cart
   let cart = await Cart.findOne({ user: req.user._id }).populate({
     path: 'cartItems.product',
-    select: 'name imageCover price quantity',
+    select: 'name imageCover price quantity variants',
     options: { skipPopulation: true },
   });
 
@@ -402,12 +413,7 @@ exports.createCashOrder = asyncHandler(async (req, res, next) => {
     );
 
     // Product `quantity` and `sold` updates
-    const writes = cart.cartItems.map((item) => ({
-      updateOne: {
-        filter: { _id: item.product._id },
-        update: { $inc: { quantity: -item.quantity, sold: item.quantity } },
-      },
-    }));
+    const writes = getProductWrites(cart);
 
     // Update products
     await Product.bulkWrite(writes, { session });

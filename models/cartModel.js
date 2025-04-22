@@ -24,7 +24,7 @@ const cartSchema = new mongoose.Schema(
       type: mongoose.Schema.ObjectId,
       ref: 'User',
       required: true,
-      index: true,
+      unique: true,
     },
   },
   { timestamps: true },
@@ -37,31 +37,55 @@ cartSchema.methods.calcTotalCartPrice = function (productPrice, addedQuantity) {
   this.totalPriceAfterDiscount = undefined;
 };
 
+const setItemQuantityChanged = (item, availableQuantity) => {
+  item.availabilityChanged = true;
+  item.exists = true;
+  item.quantityInCart = item.quantity;
+  item.availableQuantity = availableQuantity;
+};
+
+const setItemNotAvailable = (item) => {
+  item.availabilityChanged = true;
+  item.exists = false;
+};
+
 cartSchema.methods.detectProductQuantityAvailability = function () {
-  // Array to hold products that became unavailable or a its quantity decreased
-  const productsChanged = [];
-  this.cartItems.forEach((item) => {
+  let productChanged = false;
+  const cartObj = {};
+  Object.assign(cartObj, this.toObject());
+  cartObj.cartItems.forEach((item) => {
     // Product exist
     if (item.product) {
-      if (item.product.quantity < item.quantity) {
-        productsChanged.push({
-          item,
-          exists: true,
-          quantityInCart: item.quantity,
-          availableQuantity: item.product.quantity,
-        });
+      // Item with color
+      if (item.color) {
+        const variant = item.product.variants.find((prod) => prod.color === item.color);
+        // variant exists
+        if (variant) {
+          if (variant.quantity < item.quantity) {
+            productChanged = true;
+            setItemQuantityChanged(item, variant.quantity);
+          }
+        }
+        // variant doesn't exist
+        else {
+          productChanged = true;
+          setItemNotAvailable(item);
+        }
+      }
+      // Item without color
+      else if (item.product.quantity < item.quantity) {
+        productChanged = true;
+        setItemQuantityChanged(item, item.product.quantity);
       }
     }
     // Product doesn't exist
     else {
-      productsChanged.push({
-        item,
-        exists: false,
-      });
+      productChanged = true;
+      setItemNotAvailable(item);
     }
   });
 
-  return productsChanged;
+  return { productChanged, cartObj };
 };
 
 cartSchema.methods.detectPriceChange = function () {

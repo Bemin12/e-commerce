@@ -16,6 +16,9 @@ const {
   uploadProductImages,
   resizeProductImages,
   createFilterObj,
+  addProductVariant,
+  updateProductVariantQuantity,
+  removeProductVariant,
 } = require('../controllers/productController');
 
 const { protect, restrictTo } = require('../controllers/authController');
@@ -47,5 +50,11 @@ router
     updateProduct,
   )
   .delete(protect, restrictTo('admin'), deleteProductValidator, deleteProduct);
+
+router.post('/:id/variants', protect, restrictTo('admin', 'manager'), addProductVariant);
+router
+  .route('/:id/variants/:variantId')
+  .patch(protect, restrictTo('admin', 'manager'), updateProductVariantQuantity)
+  .delete(protect, restrictTo('admin', 'manager'), removeProductVariant);
 
 module.exports = router;
