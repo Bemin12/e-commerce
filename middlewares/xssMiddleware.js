@@ -1,3 +1,5 @@
+// Unused middleware
+// Found out it's bad practice
 const xss = require('xss');
 
 const sanitizeObject = (obj) => {

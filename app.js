@@ -14,7 +14,7 @@ const APIError = require('./utils/apiError');
 const globalErrorHandler = require('./middlewares/errorMiddleware');
 
 const orderController = require('./controllers/orderController');
-const sanitizeXss = require('./middlewares/xssMiddleware');
+
 // Routes
 const mountRoutes = require('./routes');
 
@@ -58,9 +58,6 @@ app.use(express.static(path.join(__dirname, 'uploads')));
 
 // Data sanitization against NoSQL query injection
 app.use(mongoSanitizer());
-
-// Sanitize user input to prevent XSS
-app.use(sanitizeXss());
 
 // Prevent http parameter pollution
 app.use(hpp({ whitelist: ['ratingsAverage', 'ratingsQuantity', 'price', 'color'] }));
